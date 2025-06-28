@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package co.edu.unipiloto.servlet;
 import co.edu.unipiloto.arquitecturas.entity.Curso;
 import co.edu.unipiloto.arquitecturas.session.CursoFacadeLocal;
@@ -46,14 +41,9 @@ public class CursoServlet extends HttpServlet {
                 cursoFacade.remove(existente);
             }
         }
-
-        // Actualiza cursos disponibles
         getServletContext().setAttribute("cursosDisponibles", cursoFacade.findAll());
-
-        // Redirige a index.jsp
         response.sendRedirect("index.jsp");
     }
-
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse res)
             throws ServletException, IOException {

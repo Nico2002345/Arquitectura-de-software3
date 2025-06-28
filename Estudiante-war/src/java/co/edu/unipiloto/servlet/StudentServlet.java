@@ -51,39 +51,117 @@ public class StudentServlet extends HttpServlet {
         if (operation != null) {
             switch (operation) {
                 case "Create":
-                    studentFacade.create(s);
+                    List<Curso> cursosParaCrear = new ArrayList<>();
+                    String[] cursosSelCrear = request.getParameterValues("cursos");
+                    boolean cuposDisponibles = true;
+                    StringBuilder cursosLlenos = new StringBuilder();
+                    if (cursosSelCrear != null) {
+                        for (String cod : cursosSelCrear) {
+                            Curso curso = cursoFacade.find(cod);
+                            if (curso != null) {
+                                int inscritos = 0;
+                                for (Student est : studentFacade.findAll()) {
+                                    if (est.getCursos() != null && est.getCursos().contains(curso)) {
+                                        inscritos++;
+                                    }
+                                }
+                                if (inscritos < curso.getEstudiantesAdmitidos()) {
+                                    cursosParaCrear.add(curso);
+                                } else {
+                                    cuposDisponibles = false;
+                                    cursosLlenos.append(curso.getNombreCurso()).append(", ");
+                                }
+                            }
+                        }
+                    }
+                    if (cuposDisponibles) {
+                        s.setCursos(cursosParaCrear);
+                        studentFacade.create(s);
+                        request.setAttribute("mensaje", "Estudiante creado con éxito.");
+                    } else {
+                        String mensaje = "No hay cupos para los siguientes cursos: " + cursosLlenos.toString().replaceAll(", $", "");
+                        request.setAttribute("mensaje", mensaje);
+                    }
                     break;
                 case "Read":
                     Student found = studentFacade.find(s.getId());
                     if (found != null) {
                         s = found;
+                    } else {
+                        request.setAttribute("mensaje", "Estudiante no encontrado.");
                     }
                     break;
                 case "Update":
-                    studentFacade.edit(s);
+                    Student estudianteExistente = studentFacade.find(s.getId());
+                    if (estudianteExistente == null) {
+                        request.setAttribute("mensaje", "No se encontró el estudiante para actualizar.");
+                        break;
+                    }
+                    // Solo actualiza campos si vienen del formulario
+                    if (firstName != null && !firstName.isEmpty()) {
+                        estudianteExistente.setFirstName(firstName);
+                    }
+                    if (lastName != null && !lastName.isEmpty()) {
+                        estudianteExistente.setLastName(lastName);
+                    }
+                    if (yearStr != null && !yearStr.isEmpty()) {
+                        try {
+                            estudianteExistente.setYearLevel(Integer.parseInt(yearStr));
+                        } catch (NumberFormatException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    List<Curso> cursosParaUpdate = new ArrayList<>();
+                    String[] cursosSelUpdate = request.getParameterValues("cursos");
+                    boolean cuposValidos = true;
+                    StringBuilder cursosLlenosUpdate = new StringBuilder();
+                    if (cursosSelUpdate != null) {
+                        for (String cod : cursosSelUpdate) {
+                            Curso curso = cursoFacade.find(cod);
+                            if (curso != null) {
+                                int inscritos = 0;
+                                for (Student est : studentFacade.findAll()) {
+                                    if (est.getId().equals(estudianteExistente.getId())) continue;
+                                    if (est.getCursos() != null && est.getCursos().contains(curso)) {
+                                        inscritos++;
+                                    }
+                                }
+                                if (inscritos < curso.getEstudiantesAdmitidos()) {
+                                    cursosParaUpdate.add(curso);
+                                } else {
+                                    cuposValidos = false;
+                                    cursosLlenosUpdate.append(curso.getNombreCurso()).append(", ");
+                                }
+                            }
+                        }
+                        if (cuposValidos) {
+                            estudianteExistente.setCursos(cursosParaUpdate);
+                        } else {
+                            String mensaje = "No se pudo actualizar. Sin cupos en: " + cursosLlenosUpdate.toString().replaceAll(", $", "");
+                            request.setAttribute("mensaje", mensaje);
+                            break;
+                        }
+                    }
+                    studentFacade.edit(estudianteExistente);
+                    s = estudianteExistente;
+                    request.setAttribute("mensaje", "Estudiante actualizado con éxito.");
                     break;
                 case "Delete":
-                    studentFacade.remove(s);
-                    s = new Student(); // limpia los campos
+                    Student estudianteAEliminar = studentFacade.find(s.getId());
+                    if (estudianteAEliminar != null) {
+                        estudianteAEliminar.setCursos(null); // rompe la relación con cursos
+                        studentFacade.edit(estudianteAEliminar); // guarda sin cursos
+                        studentFacade.remove(estudianteAEliminar); // elimina el estudiante
+                        s = new Student(); // limpia el objeto para JSP
+                        request.setAttribute("mensaje", "Estudiante eliminado correctamente.");
+                    } else {
+                        request.setAttribute("mensaje", "No se encontró el estudiante para eliminar.");
+                    }
                     break;
             }
         }
 
-        // Asignar cursos seleccionados si se seleccionaron (después del Create o Update)
-        String[] cursosSeleccionados = request.getParameterValues("cursos");
-        if (cursosSeleccionados != null && s.getId() != null) {
-            List<Curso> listaCursos = new ArrayList<>();
-            for (String cod : cursosSeleccionados) {
-                Curso c = cursoFacade.find(cod);
-                if (c != null) {
-                    listaCursos.add(c);
-                }
-            }
-            s.setCursos(listaCursos);
-            studentFacade.edit(s); // ACTUALIZA la relación cursos-estudiante
-        }
-
-        // Guardar atributos para mostrar en index.jsp
+        // Enviar datos al JSP
         request.setAttribute("student", s);
         request.setAttribute("allStudents", studentFacade.findAll());
         request.setAttribute("cursosDisponibles", cursoFacade.findAll());
@@ -106,6 +184,6 @@ public class StudentServlet extends HttpServlet {
 
     @Override
     public String getServletInfo() {
-        return "Controlador de estudiantes con asignación de cursos";
+        return "Controlador de estudiantes con asignación de cursos y control de cupos";
     }
 }

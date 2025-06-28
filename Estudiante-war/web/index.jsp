@@ -8,12 +8,15 @@
 </head>
 <body>
     <h1>Formulario Estudiante</h1>
+    <%-- Mostrar mensaje de error si hay cursos llenos --%>
+    <c:if test="${not empty mensaje}">
+        <div style="color:red; font-weight:bold;">${mensaje}</div>
+    </c:if>
     <form action="StudentServlet" method="post">
         ID: <input type="text" name="studentID"><br>
         Nombre: <input type="text" name="firstName"><br>
         Apellido: <input type="text" name="lastName"><br>
         Año: <input type="text" name="yearLevel"><br><br>
-
         <h3>Cursos disponibles:</h3>
         <%
             List<Curso> cursos = (List<Curso>) application.getAttribute("cursosDisponibles");
